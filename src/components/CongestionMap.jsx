@@ -1,4 +1,4 @@
-import React, { useMemo, memo, useCallback } from "react";
+import React, { useMemo, memo } from "react";
 import { Eye } from "lucide-react";
 import PropTypes from "prop-types";
 
@@ -135,7 +135,7 @@ ZoneShape.propTypes = {
 // CongestionMap — interactive SVG stadium map with real-time density colours.
 // Memoized: re-renders only when zone densities, selection, or viewMode change.
 // ---------------------------------------------------------------------------
-function CongestionMap({ zones, selectedZone, onSelectZone, viewMode }) {
+function CongestionMap({ zones, selectedZone, onSelectZone }) {
   // Derive per-zone CSS class once per render (zones update every 5 s)
   const zoneClasses = useMemo(
     () => Object.fromEntries(Object.entries(zones).map(([k, z]) => [k, densityClass(z.density)])),
@@ -154,7 +154,7 @@ function CongestionMap({ zones, selectedZone, onSelectZone, viewMode }) {
     <div className="map-container">
       {/* ── SVG Stadium Diagram ── */}
       <div className="map-svg-wrapper">
-        <svg viewBox="0 0 400 300" className="stadium-svg">
+        <svg viewBox="0 0 400 300" className="stadium-svg" role="img" aria-label="Interactive Stadium Congestion Map showing gates and seating sections">
           {/* Pitch */}
           <rect x="175" y="132" width="50" height="36" fill="#38a169" fillOpacity={0.6} stroke="#ffffff" strokeWidth="0.8" rx="2" />
           <line x1="200" y1="132" x2="200" y2="168" stroke="#ffffff" strokeWidth="0.8" />
@@ -260,13 +260,10 @@ CongestionMap.propTypes = {
   selectedZone: PropTypes.string,
   /** Callback fired with the zone name when the user selects a zone */
   onSelectZone: PropTypes.func.isRequired,
-  /** "fan" | "ops" — controls any view-specific rendering differences */
-  viewMode:     PropTypes.oneOf(["fan", "ops"]),
 };
 
 CongestionMap.defaultProps = {
   selectedZone: null,
-  viewMode: "fan",
 };
 
 export default memo(CongestionMap);

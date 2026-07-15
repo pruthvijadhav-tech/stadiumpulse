@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
+import React, { useState, useRef, useEffect, useCallback, memo } from "react";
 import PropTypes from "prop-types";
 import { Send, Sparkles } from "lucide-react";
 import { GoogleGenerativeAI } from "@google/generative-ai";

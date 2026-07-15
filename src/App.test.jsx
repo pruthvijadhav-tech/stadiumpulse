@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makeInitialHistory, driftZones, makeAlert } from './App';
+import { makeInitialHistory, driftZones, makeAlert } from './utils/telemetryHelpers';
 
 describe('App Helper Functions', () => {
   it('makeInitialHistory generates a list of 10 values near base density', () => {

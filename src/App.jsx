@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { Sparkles, LayoutDashboard, MessageSquare, Map } from "lucide-react";
 import { stadiumData as baseStadiumData } from "./data/mockStadiumData";
 import FanChat from "./components/FanChat";
@@ -8,34 +8,11 @@ import FanChat from "./components/FanChat";
 const OpsDashboard = lazy(() => import("./components/OpsDashboard"));
 import CongestionMap from "./components/CongestionMap";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { makeInitialHistory, driftZones, makeAlert } from "./utils/telemetryHelpers";
 
 // ---------------------------------------------------------------------------
 // Helpers — defined outside the component so they are never recreated
 // ---------------------------------------------------------------------------
-
-/** Generate an initial 10-point history list around a base density value. */
-export function makeInitialHistory(baseDensity) {
-  return Array.from({ length: 10 }, () => {
-    const drift = Math.floor(Math.random() * 11) - 5;
-    return Math.max(10, Math.min(95, baseDensity + drift));
-  });
-}
-
-/** Return a new zones map with each density / wait-time randomly drifted. */
-export function driftZones(zones) {
-  const next = {};
-  for (const [key, zone] of Object.entries(zones)) {
-    const density = Math.max(10, Math.min(95, zone.density + Math.floor(Math.random() * 9) - 4));
-    next[key] = {
-      ...zone,
-      density,
-      ...(zone.type === "gate" && {
-        currentWaitTime: Math.max(2, Math.round(density * 0.4 + (Math.random() * 4 - 2))),
-      }),
-    };
-  }
-  return next;
-}
 
 /** 10-event fallback pool used when no Gemini key is present. */
 const FALLBACK_EVENT_POOL = [
@@ -51,19 +28,7 @@ const FALLBACK_EVENT_POOL = [
   { zone: "Gate D", headline: "Shuttle Delay Alert", rec: "FIFA Shuttle bus 3 delayed 18 mins. Update fan information screens at Gate D and notify Station staff.", urgency: "low" },
 ];
 
-/** Build an alert object with common timestamp / status fields. */
-export function makeAlert({ id, zone, headline, recommendation, urgency, source }) {
-  return {
-    id,
-    zone,
-    headline,
-    recommendation,
-    urgency,
-    source,
-    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-    status: "active",
-  };
-}
+
 
 // ---------------------------------------------------------------------------
 export default function App() {
