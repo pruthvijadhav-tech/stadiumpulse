@@ -1,7 +1,8 @@
-import React from "react";
+import React, { memo } from "react";
+import PropTypes from "prop-types";
 import { AlertTriangle, Shield, CheckCircle, Zap, Activity } from "lucide-react";
 
-export default function AlertFeed({ alerts, onResolveAlert, onAcknowledgeAlert }) {
+function AlertFeed({ alerts, onResolveAlert, onAcknowledgeAlert }) {
   // Urgency icon color helper
   const getAlertStyle = (urgency) => {
     switch (urgency) {
@@ -41,7 +42,6 @@ export default function AlertFeed({ alerts, onResolveAlert, onAcknowledgeAlert }
           {alerts.filter(a => a.status === "active").length} ACTIVE
         </span>
       </div>
-
       <div className="ops-card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
         {alerts.length === 0 ? (
           <div style={{
@@ -140,3 +140,25 @@ export default function AlertFeed({ alerts, onResolveAlert, onAcknowledgeAlert }
     </div>
   );
 }
+
+AlertFeed.propTypes = {
+  /** Array of active operational alert objects */
+  alerts:             PropTypes.arrayOf(PropTypes.shape({
+    id:             PropTypes.string.isRequired,
+    zone:           PropTypes.string.isRequired,
+    headline:       PropTypes.string.isRequired,
+    recommendation: PropTypes.string.isRequired,
+    urgency:        PropTypes.oneOf(["high", "medium", "low"]).isRequired,
+    status:         PropTypes.string.isRequired,
+    timestamp:      PropTypes.string,
+    source:         PropTypes.string,
+  })).isRequired,
+  /** Callback to resolve/dispatch an alert by id */
+  onResolveAlert:     PropTypes.func.isRequired,
+  /** Callback to acknowledge an alert by id */
+  onAcknowledgeAlert: PropTypes.func.isRequired,
+};
+
+// Memoized: AlertFeed only re-renders when the alerts array or its callbacks
+// actually change — not on every 5-second telemetry tick that updates stadiumData.
+export default memo(AlertFeed);

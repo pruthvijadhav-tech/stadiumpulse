@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import PropTypes from "prop-types";
 import { Users, Clock, AlertOctagon, TrendingUp, Info } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import CongestionMap from "./CongestionMap";
@@ -163,3 +164,24 @@ export default function OpsDashboard({
     </div>
   );
 }
+
+OpsDashboard.propTypes = {
+  /** Full live stadium state object */
+  stadiumData:        PropTypes.object.isRequired,
+  /** Array of active operational alerts */
+  alerts:             PropTypes.arrayOf(PropTypes.object).isRequired,
+  /** Callback to mark an alert as resolved / dispatched */
+  onResolveAlert:     PropTypes.func.isRequired,
+  /** Callback to mark an alert as acknowledged */
+  onAcknowledgeAlert: PropTypes.func.isRequired,
+  /** Currently selected zone name */
+  selectedZone:       PropTypes.string,
+  /** Callback fired when the user selects a map zone */
+  onSelectZone:       PropTypes.func.isRequired,
+  /** Historic density readings keyed by zone name */
+  densityHistory:     PropTypes.objectOf(PropTypes.arrayOf(PropTypes.number)).isRequired,
+};
+
+OpsDashboard.defaultProps = {
+  selectedZone: null,
+};

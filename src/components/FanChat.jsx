@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
+import PropTypes from "prop-types";
 import { Send, Sparkles } from "lucide-react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
@@ -129,7 +130,7 @@ function getSimulatedResponse(query, stadiumData, language) {
 }
 
 // ---------------------------------------------------------------------------
-export default function FanChat({ stadiumData, language, demoNotification, demoSimulatedQuery }) {
+function FanChat({ stadiumData, language, demoNotification, demoSimulatedQuery }) {
   const [messages, setMessages] = useState([{ id: "welcome", sender: "bot", text: WELCOME[language] }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -339,3 +340,25 @@ Fan query: "${userQuery}"`;
     </div>
   );
 }
+
+FanChat.propTypes = {
+  /** Full live stadium state object used to ground AI responses */
+  stadiumData:         PropTypes.object.isRequired,
+  /** Active UI language: "en" | "es" */
+  language:            PropTypes.oneOf(["en", "es"]).isRequired,
+  /** Optional proactive notification text shown as a banner (Demo Mode) */
+  demoNotification:    PropTypes.string,
+  /** Optional query string that is auto-typed and sent during Demo Mode */
+  demoSimulatedQuery:  PropTypes.string,
+};
+
+FanChat.defaultProps = {
+  demoNotification:   null,
+  demoSimulatedQuery: null,
+};
+
+// Memoized: FanChat only re-renders when its props actually change.
+// stadiumData changes every 5 s but that is intentional — the latest
+// state is needed to ground new AI responses accurately.
+export default memo(FanChat);
+

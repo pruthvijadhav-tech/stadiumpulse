@@ -1,5 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, memo, useCallback } from "react";
 import { Eye } from "lucide-react";
+import PropTypes from "prop-types";
 
 // ---------------------------------------------------------------------------
 // SVG layout — stable module-level constant; never recreated on re-render.
@@ -25,24 +26,44 @@ const LEGEND = [
   { cls: "red",    label: "High (>70%)", symbol: "⚠" },
 ];
 
+/**
+ * Returns the CSS class for a zone based on its crowd density.
+ * @param {number} density - Crowd density as a percentage (0–100).
+ * @returns {string} CSS class name.
+ */
 function densityClass(density) {
   if (density < 40) return "zone-green";
   if (density <= 70) return "zone-yellow";
   return "zone-red";
 }
 
+/**
+ * Returns a human-readable congestion label for a given density.
+ * @param {number} density - Crowd density as a percentage (0–100).
+ * @returns {string} Congestion level label.
+ */
 function densityLabel(density) {
   if (density < 40) return "Low Congestion";
   if (density <= 70) return "Moderate Congestion";
   return "High Congestion";
 }
 
+/**
+ * Returns the badge colour class for a given density.
+ * @param {number} density - Crowd density as a percentage (0–100).
+ * @returns {string} Colour class ("green" | "yellow" | "red").
+ */
 function densityBadgeCls(density) {
   if (density < 40) return "green";
   if (density <= 70) return "yellow";
   return "red";
 }
 
+/**
+ * Returns the accessibility symbol representing the congestion level.
+ * @param {number} density - Crowd density as a percentage (0–100).
+ * @returns {string} Unicode symbol.
+ */
 function getDensitySymbol(density) {
   if (density < 40) return "✓";
   if (density <= 70) return "!";
@@ -51,9 +72,20 @@ function getDensitySymbol(density) {
 
 // ---------------------------------------------------------------------------
 // ZoneShape — renders the correct SVG primitive for a zone entry.
-// Accepts all shape props via spread to keep renderZone() clean.
+// Memoized: only re-renders when its own density / selection state changes.
 // ---------------------------------------------------------------------------
-function ZoneShape({ zoneId, el, cls, isSelected, onClick, density }) {
+const ZoneShape = memo(function ZoneShape({ zoneId, el, cls, isSelected, onClick, density }) {
+  const symbol = getDensitySymbol(density);
+
+  // Approximate symbol text position from shape geometry
+  let textX = 200, textY = 150;
+  if (el.cx !== undefined) { textX = el.cx; textY = el.cy; }
+  else if (el.x !== undefined) { textX = el.x + el.width / 2; textY = el.y + el.height / 2; }
+  if (zoneId === "Section 200")     { textX = 280; textY = 150; }
+  else if (zoneId === "Section 300")     { textX = 120; textY = 150; }
+  else if (zoneId === "Concourse North") { textX = 200; textY = 45; }
+  else if (zoneId === "Concourse South") { textX = 200; textY = 255; }
+
   const shared = {
     className: `svg-zone ${cls} ${isSelected ? "selected" : ""}`,
     onClick,
@@ -64,21 +96,16 @@ function ZoneShape({ zoneId, el, cls, isSelected, onClick, density }) {
     "aria-label": `${zoneId}, ${densityLabel(density)}. Press Enter to select.`,
   };
 
-  const symbol = getDensitySymbol(density);
-  
-  // To render a small text symbol near the shape to help colorblind users.
-  // We approximate the center using the shape's coords.
-  let textX = 200, textY = 150;
-  if (el.cx) { textX = el.cx; textY = el.cy; }
-  else if (el.x) { textX = el.x + el.width/2; textY = el.y + el.height/2; }
-  // For complex paths, we hardcode symbol positions based on the zoneId
-  if (zoneId === "Section 200") { textX = 280; textY = 150; }
-  else if (zoneId === "Section 300") { textX = 120; textY = 150; }
-  else if (zoneId === "Concourse North") { textX = 200; textY = 45; }
-  else if (zoneId === "Concourse South") { textX = 200; textY = 255; }
-
   const textElement = (
-    <text x={textX} y={textY} className="zone-symbol" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: "10px", fontWeight: "bold", pointerEvents: "none", fill: "var(--text-main)" }} aria-hidden="true">
+    <text
+      x={textX}
+      y={textY}
+      className="zone-symbol"
+      textAnchor="middle"
+      dominantBaseline="middle"
+      style={{ fontSize: "10px", fontWeight: "bold", pointerEvents: "none", fill: "var(--text-main)" }}
+      aria-hidden="true"
+    >
       {symbol}
     </text>
   );
@@ -93,14 +120,32 @@ function ZoneShape({ zoneId, el, cls, isSelected, onClick, density }) {
     return <g><rect x={el.x} y={el.y} width={el.width} height={el.height} rx={el.rx} fillOpacity={0.8} {...shared} />{textElement}</g>;
   }
   return null;
-}
+});
+
+ZoneShape.propTypes = {
+  zoneId:     PropTypes.string.isRequired,
+  el:         PropTypes.object.isRequired,
+  cls:        PropTypes.string.isRequired,
+  isSelected: PropTypes.bool.isRequired,
+  onClick:    PropTypes.func.isRequired,
+  density:    PropTypes.number.isRequired,
+};
 
 // ---------------------------------------------------------------------------
-export default function CongestionMap({ zones, selectedZone, onSelectZone, viewMode }) {
-  // Derive per-zone class once per render (zones update every 5 s)
+// CongestionMap — interactive SVG stadium map with real-time density colours.
+// Memoized: re-renders only when zone densities, selection, or viewMode change.
+// ---------------------------------------------------------------------------
+function CongestionMap({ zones, selectedZone, onSelectZone, viewMode }) {
+  // Derive per-zone CSS class once per render (zones update every 5 s)
   const zoneClasses = useMemo(
     () => Object.fromEntries(Object.entries(zones).map(([k, z]) => [k, densityClass(z.density)])),
     [zones]
+  );
+
+  // Stable per-zone click handlers so ZoneShape memo is not invalidated by new refs
+  const clickHandlers = useMemo(
+    () => Object.fromEntries(Object.keys(SVG_LAYOUT).map(zoneId => [zoneId, () => onSelectZone(zoneId)])),
+    [onSelectZone]
   );
 
   const selectedZoneData = zones[selectedZone];
@@ -127,7 +172,7 @@ export default function CongestionMap({ zones, selectedZone, onSelectZone, viewM
                 cls={zoneClasses[zoneId]}
                 density={zone.density}
                 isSelected={selectedZone === zoneId}
-                onClick={() => onSelectZone(zoneId)}
+                onClick={clickHandlers[zoneId]}
               />
             );
           })}
@@ -150,7 +195,7 @@ export default function CongestionMap({ zones, selectedZone, onSelectZone, viewM
       <div className="map-legend" role="note" aria-label="Map Legend">
         {LEGEND.map(({ cls, label, symbol }) => (
           <div key={cls} className="legend-item">
-            <span className={`legend-dot ${cls}`} aria-hidden="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 'bold' }}>{symbol}</span>
+            <span className={`legend-dot ${cls}`} aria-hidden="true" style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", fontWeight: "bold" }}>{symbol}</span>
             <span>{label}</span>
           </div>
         ))}
@@ -207,3 +252,21 @@ export default function CongestionMap({ zones, selectedZone, onSelectZone, viewM
     </div>
   );
 }
+
+CongestionMap.propTypes = {
+  /** Live zone data keyed by zone name */
+  zones:        PropTypes.objectOf(PropTypes.object).isRequired,
+  /** Currently selected zone name, or null */
+  selectedZone: PropTypes.string,
+  /** Callback fired with the zone name when the user selects a zone */
+  onSelectZone: PropTypes.func.isRequired,
+  /** "fan" | "ops" — controls any view-specific rendering differences */
+  viewMode:     PropTypes.oneOf(["fan", "ops"]),
+};
+
+CongestionMap.defaultProps = {
+  selectedZone: null,
+  viewMode: "fan",
+};
+
+export default memo(CongestionMap);

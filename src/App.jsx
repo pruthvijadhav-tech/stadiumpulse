@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { Sparkles, LayoutDashboard, MessageSquare, Map } from "lucide-react";
 import { stadiumData as baseStadiumData } from "./data/mockStadiumData";
 import FanChat from "./components/FanChat";
-import OpsDashboard from "./components/OpsDashboard";
+// OpsDashboard is only needed when the user switches to the Ops view.
+// Lazy-loading it splits Recharts and the dashboard code into a separate chunk
+// that is not downloaded by fans who never leave the Fan Concierge view.
+const OpsDashboard = lazy(() => import("./components/OpsDashboard"));
 import CongestionMap from "./components/CongestionMap";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
@@ -425,15 +428,21 @@ Return ONLY valid JSON:
             </div>
           </div>
         ) : (
-          <OpsDashboard
-            stadiumData={stadiumData}
-            alerts={alerts}
-            onResolveAlert={handleResolveAlert}
-            onAcknowledgeAlert={handleAcknowledgeAlert}
-            selectedZone={selectedZone}
-            onSelectZone={setSelectedZone}
-            densityHistory={densityHistory}
-          />
+          <Suspense fallback={
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1, color: "var(--text-muted)" }}>
+              Loading Operations Centre…
+            </div>
+          }>
+            <OpsDashboard
+              stadiumData={stadiumData}
+              alerts={alerts}
+              onResolveAlert={handleResolveAlert}
+              onAcknowledgeAlert={handleAcknowledgeAlert}
+              selectedZone={selectedZone}
+              onSelectZone={setSelectedZone}
+              densityHistory={densityHistory}
+            />
+          </Suspense>
         )}
       </main>
 
